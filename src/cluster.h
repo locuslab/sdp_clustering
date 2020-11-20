@@ -15,10 +15,10 @@ typedef struct Ring {
     int *is_in;
 } Ring;
 
-float mix_cluster_cpu(int max_iter, float eps, 
+float solve_locale(int max_iter, float eps, 
         int n, SparseMat A, float *Adiag, SparseMat V,
         SparsePair *buf, float *s, float *d, float *g,
         Ring *Q, int *comm, int *n_comm,
         int shrink, int comm_init);
 
-void mix_aggregate_cpu(int nA, SparseMat A, float *Adiag, int nG, SparseMat G, float *Gdiag, int *comm);
+void aggregate_clusters(int nA, SparseMat A, float *Adiag, int nG, SparseMat G, float *Gdiag, int *comm);
