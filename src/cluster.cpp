@@ -443,3 +443,15 @@ void aggregate_clusters(int nA, SparseMat A, float *Adiag, int nG, SparseMat G, 
     fprintf(stderr, "mA %lf mG %lf\n", mA, mG);
 #endif
 }
+
+void merge(int n, int *comm, int *comm_next) 
+{
+    for (int i=0; i<n; i++)
+        comm_next[comm[i]] = comm[i];
+}
+
+void split(int n, int *comm, int *comm_next)
+{
+    for (int i=0; i<n; i++)
+        comm[i] = comm_next[comm[i]];
+}

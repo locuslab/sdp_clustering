@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+
+import sys
+import argparse
+import numpy as np
+from scipy.io import mmread
+from sdp_clustering import mixing_locale
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('graph_input', type=str,
+                        help='Inputting_graph in symmetric matrix market format')
+    parser.add_argument('--k', type=int, default=8,
+                        help='Cadinality for embeddings (int)')
+    parser.add_argument('--eps', type=float, default=1e-6,
+                        help='Stopping criterion for optimization problem (float)')
+    parser.add_argument('--max_outer', type=int, default=10,
+                        help='Maximum number of outer iterations (int)')
+    parser.add_argument('--max_lv', type=int, default=10,
+                        help='Maximum number of levelsin an outer iteration (int)')
+    parser.add_argument('--max_inner', type=int, default=2,
+                        help='Maximum number of inner iters for optimization (int)')
+    parser.add_argument('--out', type=str, default=None,
+                        help='Output clustering labels (default no output)')
+    args = parser.parse_args()
+
+
+    graph = mmread(args.graph_input)
+
+    labels = mixing_locale(graph, args.k, args.eps, args.max_outer, args.max_lv, args.max_inner)
+    if args.out: 
+        np.savetxt(args.out, labels, fmt='%d', delimiter='\n')
+
+if __name__ == '__main__':
+    main()

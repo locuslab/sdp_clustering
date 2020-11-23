@@ -22,3 +22,5 @@ float solve_locale(int max_iter, float eps,
         int shrink, int comm_init);
 
 void aggregate_clusters(int nA, SparseMat A, float *Adiag, int nG, SparseMat G, float *Gdiag, int *comm);
+void merge(int n, int *comm, int *comm_next);
+void split(int n, int *comm, int *comm_next);

@@ -70,7 +70,21 @@ void py_aggregate_clusters(
             iptr(comm));
 }
 
+void py_merge(arr comm, arr comm_next)
+{
+    int n = comm.shape(0);
+    merge(n, iptr(comm), iptr(comm_next));
+}
+
+void py_split(arr comm, arr comm_next)
+{
+    int n = comm.shape(0);
+    split(n, iptr(comm), iptr(comm_next));
+}
+
 PYBIND11_MODULE(EXTENSION_NAME, m) {
-    m.def("solve_locale" ,  &py_solve_locale,  "Mix cluster (cpu)");
-    m.def("aggregate_clusters" , &py_aggregate_clusters, "Mix aggregate (cpu)");
+    m.def("solve_locale" ,  &py_solve_locale,  "Solve locale optimization");
+    m.def("aggregate_clusters" , &py_aggregate_clusters, "Form hypergraph");
+    m.def("merge" ,  &py_merge,  "Merge (cpu)");
+    m.def("split" ,  &py_split,  "Split (cpu)");
 }

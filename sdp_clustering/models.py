@@ -90,24 +90,27 @@ def mixing_aggregate(A, Adiag, comm, n_comm):
 
     return G, Gdiag
 
-def mixing_reassign(comms):
-    for lv in reversed(range(len(comms)-1)):
-        for i, ic in enumerate(comms[lv].tolist()):
-            comms[lv][i] = comms[lv+1][ic]
-    comm_init = comms[0].copy()
-    return comms, comm_init
+def mixing_merge(comm, comm_next):
+    #for i, ic in enumerate(comm.tolist()):
+    #    comm_next[ic] = comm[i]
+    _cpp.merge(comm, comm_next)
 
-def mixing_locale(A, k, max_outer_iter, max_lv, inner_iter, eps):
+def mixing_split(comm, comm_next):
+    #for i, ic in enumerate(comm.tolist()):
+    #    comm[i] = comm_next[ic]
+    _cpp.split(comm, comm_next)
+
+def mixing_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2):
     A = SparseMat.from_scipy(A)
     n = len(A.indptr)-1
     Adiag = np.zeros(n)
     comm_init = None
-    for it in range(max_outer_iter):
+    for it in range(max_outer):
         comms = []
         G, Gdiag = A.copy(), Adiag.copy()
         for lv in range(max_lv):
             print(f'\nouter iter {it+1} lv {lv+1}\n')
-            fval, comm, n_comm, V = mixing_cluster(G, Gdiag, k, comm=comm_init, eps=eps, max_iter=inner_iter, comm_init=comm_init is not None)
+            fval, comm, n_comm, V = mixing_cluster(G, Gdiag, k, comm=comm_init, eps=eps, max_iter=max_inner, comm_init=comm_init is not None)
             #print(V)
             print(fval, n_comm)
             if 1:
@@ -116,12 +119,16 @@ def mixing_locale(A, k, max_outer_iter, max_lv, inner_iter, eps):
             else: # Louvain
                 new_comm, new_n_comm = comm.copy(), n_comm
 
+            if new_n_comm == len(comm): break
 
             comm_init = np.zeros(new_n_comm, dtype=np.int32)
-            for i, ic in enumerate(new_comm.tolist()):
-                comm_init[ic] = comm[i]
+            mixing_merge(comm, comm_init)
 
             comms.append(new_comm.copy())
             G, Gdiag = mixing_aggregate(G, Gdiag, new_comm, new_n_comm)
 
-        comms, comm_init = mixing_reassign(comms)
+        for lv in reversed(range(len(comms)-1)):
+            mixing_split(comms[lv], comms[lv+1])
+        comm_init = comms[0].copy()
+
+    return comm_init
