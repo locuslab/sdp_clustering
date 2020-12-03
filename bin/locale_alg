@@ -17,7 +17,7 @@ def main():
     parser.add_argument('--max_outer', type=int, default=10,
                         help='Maximum number of outer iterations (int)')
     parser.add_argument('--max_lv', type=int, default=10,
-                        help='Maximum number of levelsin an outer iteration (int)')
+                        help='Maximum number of levels in an outer iteration (int)')
     parser.add_argument('--max_inner', type=int, default=2,
                         help='Maximum number of inner iters for optimization (int)')
     parser.add_argument('--out', type=str, default=None,

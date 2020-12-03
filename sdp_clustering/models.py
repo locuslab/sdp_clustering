@@ -90,10 +90,10 @@ def mixing_aggregate(A, Adiag, comm, n_comm):
 
     return G, Gdiag
 
-def mixing_merge(comm, comm_next):
-    #for i, ic in enumerate(comm.tolist()):
+def mixing_merge(comm, comm_next, new_comm):
+    #for i, ic in enumerate(new_comm.tolist()):
     #    comm_next[ic] = comm[i]
-    _cpp.merge(comm, comm_next)
+    _cpp.merge(comm, comm_next, new_comm)
 
 def mixing_split(comm, comm_next):
     #for i, ic in enumerate(comm.tolist()):
@@ -122,13 +122,21 @@ def mixing_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2):
             if new_n_comm == len(comm): break
 
             comm_init = np.zeros(new_n_comm, dtype=np.int32)
-            mixing_merge(comm, comm_init)
+            mixing_merge(comm, comm_init, new_comm)
+            #for i, ic in enumerate(new_comm.tolist()):
+            #    comm_init[ic] = comm[i]
 
             comms.append(new_comm.copy())
             G, Gdiag = mixing_aggregate(G, Gdiag, new_comm, new_n_comm)
 
-        for lv in reversed(range(len(comms)-1)):
-            mixing_split(comms[lv], comms[lv+1])
-        comm_init = comms[0].copy()
+        if 0:
+            for lv in reversed(range(len(comms)-1)):
+                for i, ic in enumerate(comms[lv].tolist()):
+                    comms[lv][i] = comms[lv+1][ic]
+            comm_init = comms[0].copy()
+        else:
+            for lv in reversed(range(len(comms)-1)):
+                mixing_split(comms[lv], comms[lv+1])
+            comm_init = comms[0].copy()
 
     return comm_init

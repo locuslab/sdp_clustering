@@ -41,13 +41,14 @@ double wall_time_diff(int64_t ed, int64_t st)
 // ------------- Sparse BLAS-like utils --------------------
 
 // perform y += a * xi for sparse matrix X
-void axipy(float *__restrict__ y, float a, SparseMat X, int i)
+void axipy(float *__restrict__ y, const float a, SparseMat X, int i)
 {
-    int st = X.indptr[i], ed = X.indptr[i+1];
+    int p = X.indptr[i];
+    const int ed = X.indptr[i+1];
     const int *__restrict__ indices = X.indices;
     const float *__restrict__ data = X.data;
 
-    for (int p=st; p<ed; p++) {
+    for (; p<ed; p++) {
         y[indices[p]] += a * data[p];
     }
 }
@@ -444,10 +445,10 @@ void aggregate_clusters(int nA, SparseMat A, float *Adiag, int nG, SparseMat G, 
 #endif
 }
 
-void merge(int n, int *comm, int *comm_next) 
+void merge(int n, int *comm, int *comm_next, int *new_comm) 
 {
     for (int i=0; i<n; i++)
-        comm_next[comm[i]] = comm[i];
+        comm_next[new_comm[i]] = comm[i];
 }
 
 void split(int n, int *comm, int *comm_next)

@@ -70,10 +70,10 @@ void py_aggregate_clusters(
             iptr(comm));
 }
 
-void py_merge(arr comm, arr comm_next)
+void py_merge(arr comm, arr comm_next, arr new_comm)
 {
     int n = comm.shape(0);
-    merge(n, iptr(comm), iptr(comm_next));
+    merge(n, iptr(comm), iptr(comm_next), iptr(new_comm));
 }
 
 void py_split(arr comm, arr comm_next)
