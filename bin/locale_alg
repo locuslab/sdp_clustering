@@ -4,7 +4,7 @@ import sys
 import argparse
 import numpy as np
 from scipy.io import mmread
-from sdp_clustering import mixing_locale
+from sdp_clustering import init_random_seed, leiden_locale 
 
 def main():
     parser = argparse.ArgumentParser()
@@ -20,6 +20,10 @@ def main():
                         help='Maximum number of levels in an outer iteration (int)')
     parser.add_argument('--max_inner', type=int, default=2,
                         help='Maximum number of inner iters for optimization (int)')
+    parser.add_argument('--seed', type=int, default=1234,
+                        help='random seed (int)')
+    parser.add_argument('--silent', action='store_true',
+                        help='Silent the verbosity')
     parser.add_argument('--out', type=str, default=None,
                         help='Output clustering labels (default no output)')
     args = parser.parse_args()
@@ -27,7 +31,8 @@ def main():
 
     graph = mmread(args.graph_input)
 
-    labels = mixing_locale(graph, args.k, args.eps, args.max_outer, args.max_lv, args.max_inner)
+    init_random_seed(args.seed)
+    labels = leiden_locale(graph, args.k, args.eps, args.max_outer, args.max_lv, args.max_inner, not args.silent)
     if args.out: 
         np.savetxt(args.out, labels, fmt='%d', delimiter='\n')
 

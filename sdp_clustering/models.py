@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.sparse import csr_matrix
 import sdp_clustering._cpp as _cpp
 
 class SparseMat(object):
@@ -11,8 +12,9 @@ class SparseMat(object):
         return SparseMat(self.indptr.copy(), self.indices.copy(), self.data.copy())
 
     @classmethod
-    def from_scipy(cls, scipy_mat):
-        A = scipy_mat.tocsr()
+    def from_scipy(cls, A):
+        if not A is csr_matrix:
+            A = A.tocsr()
         indptr = A.indptr
         indices = A.indices
         data = np.asarray(A.data, dtype=np.float32)
@@ -47,7 +49,10 @@ class SparseMat(object):
         return ''.join(s)
 
 
-def mixing_cluster(A, Adiag, k, comm=None, n_comm=None, max_iter=100, eps=1e-3, shrink=0, comm_init=0):
+def init_random_seed(seed):
+    _cpp.init_random_seed(seed)
+
+def solve_locale(A, Adiag, k, comm=None, n_comm=None, max_iter=100, eps=1e-3, shrink=0, comm_init=0, verbose=False):
     n = A.indptr.shape[0]-1
     if k>n: k=n
     k_ = max(10, k) # preallocate for increased rank
@@ -71,11 +76,11 @@ def mixing_cluster(A, Adiag, k, comm=None, n_comm=None, max_iter=100, eps=1e-3, 
         buf, s, d, g,
         queue, is_in,
         comm, n_comm,
-        shrink, comm_init)
+        shrink, comm_init, verbose)
 
     return fval, comm, n_comm.item(), V
 
-def mixing_aggregate(A, Adiag, comm, n_comm):
+def aggregate_clusters(A, Adiag, comm, n_comm):
     G = SparseMat.zeros_like(A, n_comm)
     Gdiag = np.zeros(n_comm)
 
@@ -90,17 +95,17 @@ def mixing_aggregate(A, Adiag, comm, n_comm):
 
     return G, Gdiag
 
-def mixing_merge(comm, comm_next, new_comm):
+def merge_clusters(comm, comm_next, new_comm):
     #for i, ic in enumerate(new_comm.tolist()):
     #    comm_next[ic] = comm[i]
     _cpp.merge(comm, comm_next, new_comm)
 
-def mixing_split(comm, comm_next):
+def split_clusters(comm, comm_next):
     #for i, ic in enumerate(comm.tolist()):
     #    comm[i] = comm_next[ic]
     _cpp.split(comm, comm_next)
 
-def mixing_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2):
+def leiden_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2, verbose=False):
     A = SparseMat.from_scipy(A)
     n = len(A.indptr)-1
     Adiag = np.zeros(n)
@@ -109,34 +114,25 @@ def mixing_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2):
         comms = []
         G, Gdiag = A.copy(), Adiag.copy()
         for lv in range(max_lv):
-            print(f'\nouter iter {it+1} lv {lv+1}\n')
-            fval, comm, n_comm, V = mixing_cluster(G, Gdiag, k, comm=comm_init, eps=eps, max_iter=max_inner, comm_init=comm_init is not None)
-            #print(V)
-            print(fval, n_comm)
-            if 1:
-                fval, new_comm, new_n_comm, V = mixing_cluster(G, Gdiag, k, comm=comm, n_comm=n_comm, eps=1e-4, max_iter=1, shrink=1)
-                print(fval, new_n_comm)
+            if verbose: print(f'\nouter iter {it+1} lv {lv+1}\n')
+            fval, comm, n_comm, V = solve_locale(G, Gdiag, k, comm=comm_init, eps=eps, max_iter=max_inner, comm_init=comm_init is not None, verbose=verbose)
+            if verbose: print(f'opt fval {fval} n_comm {n_comm}')
+            if 1: # Locale
+                fval, new_comm, new_n_comm, V = solve_locale(G, Gdiag, k, comm=comm, n_comm=n_comm, eps=1e-4, max_iter=1, shrink=1, verbose=verbose)
+                if verbose: print(f'rnd fval {fval} n_comm {new_n_comm}')
             else: # Louvain
                 new_comm, new_n_comm = comm.copy(), n_comm
 
             if new_n_comm == len(comm): break
 
             comm_init = np.zeros(new_n_comm, dtype=np.int32)
-            mixing_merge(comm, comm_init, new_comm)
-            #for i, ic in enumerate(new_comm.tolist()):
-            #    comm_init[ic] = comm[i]
+            merge_clusters(comm, comm_init, new_comm)
 
             comms.append(new_comm.copy())
-            G, Gdiag = mixing_aggregate(G, Gdiag, new_comm, new_n_comm)
+            G, Gdiag = aggregate_clusters(G, Gdiag, new_comm, new_n_comm)
 
-        if 0:
-            for lv in reversed(range(len(comms)-1)):
-                for i, ic in enumerate(comms[lv].tolist()):
-                    comms[lv][i] = comms[lv+1][ic]
-            comm_init = comms[0].copy()
-        else:
-            for lv in reversed(range(len(comms)-1)):
-                mixing_split(comms[lv], comms[lv+1])
-            comm_init = comms[0].copy()
+        for lv in reversed(range(len(comms)-1)):
+            split_clusters(comms[lv], comms[lv+1])
+        comm_init = comms[0].copy()
 
     return comm_init

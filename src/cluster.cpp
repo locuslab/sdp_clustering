@@ -219,10 +219,10 @@ void ring_reset(Ring *Q)
 float solve_locale(int max_iter, float eps, 
         int n, SparseMat A, float *Adiag, SparseMat V,
         SparsePair *buf, float *__restrict__ s, float *__restrict__ d, float *__restrict__ g,
-        Ring *Q, int *comm, int *n_comm, int shrink, int comm_init)
+        Ring *Q, int *comm, int *n_comm, int shrink, int comm_init, int verbose)
 {
     int64_t time_st = wall_clock_ns();
-    fprintf(stderr, "n_comm %d\n", *n_comm);
+    if (verbose) fprintf(stderr, "n_comm %d\n", *n_comm);
     double fval = 0;
     double m = 0;
     for (int i=0; i<n; i++) {
@@ -257,10 +257,10 @@ float solve_locale(int max_iter, float eps,
 
     fval /= 2*m;
     int k = V.indptr[1]-V.indptr[0];
-    fprintf(stderr, "k = %d m %lf\n", k, m);
-
     int64_t time_now = wall_clock_ns();
-    fprintf(stderr, "iter 0 fval %f time %.4e\n", fval, wall_time_diff(time_now, time_st));
+
+    if (verbose) fprintf(stderr, "k = %d m %lf\n", k, m);
+    if (verbose) fprintf(stderr, "iter 0 fval %f time %.4e\n", fval, wall_time_diff(time_now, time_st));
 
     int iter=0, first=0, nvisited=0;
     double delta = 0;
@@ -269,15 +269,12 @@ float solve_locale(int max_iter, float eps,
     ring_reset(Q);
     while (1) {
         if (nvisited >= n || Q->len == 0) {
-            //if (iter>2*max_iter) break; // XXX
             iter ++;
             fval += delta/(2*m);
             time_now = wall_clock_ns();
-            fprintf(stderr, "iter %d fval %.8e delta %.2e %s %s qlen %d time %.4e\n", iter, fval, delta/(2*m), shrink?"shrink":"", first?"first":"", Q->len, wall_time_diff(time_now, time_st));
+            if (verbose) fprintf(stderr, "iter %d fval %.8e delta %.2e %s %s qlen %d time %.4e\n", iter, fval, delta/(2*m), shrink?"shrink":"", first?"first":"", Q->len, wall_time_diff(time_now, time_st));
             double scaled_delta = fabs(delta/(2*m));
-            if ((!shrink && (scaled_delta < eps || iter>=max_iter)) || (shrink && (scaled_delta < eps*1e-2 || Q->len==0 || iter>=15))) { // practice
-            //if ((!shrink && (scaled_delta < eps || iter>=max_iter)) || (shrink && (Q->len==0 || iter>=30))) { // validation
-                //if (shrink && (*n_comm || iter>=max_iter)) break;
+            if ((!shrink && (scaled_delta < eps || iter>=max_iter)) || (shrink && (scaled_delta < eps || Q->len==0 || iter>=15))) {
                 if (shrink) break;
                 shrink ^= 1;
                 first = shrink;
@@ -285,10 +282,8 @@ float solve_locale(int max_iter, float eps,
             } else {
                 first = 0;
             }
-            //if (Q->len==0) ring_reset(Q);
 
             delta = 0, nvisited = 0;
-            //ring_reset(Q); // NOTE Enable when validation
         }
 
         int i = ring_pop(Q);

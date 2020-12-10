@@ -11,14 +11,11 @@ int *iptr(arr& a)   { return (int*) a.mutable_data(); }
 
 static int has_inited = 0;
 
-void randinit()
+void init_random_seed(long int seed)
 {
     has_inited = 1;
-    long int tt = (long int)time(NULL);
-    fprintf(stderr, "tt = %ld\n", tt);
-    srand48(tt);
-    //srand48(1111);
-    srandom(tt);
+    srand48(seed);
+    srandom(seed);
 }
 
 SparseMat SparseMat_init(arr indptr, arr indices, arr data)
@@ -36,9 +33,9 @@ float py_solve_locale(int max_iter, float eps,
         arr buf, arr s, arr d, arr g,
         arr queue, arr is_in,
         arr comm, arr n_comm,
-        int shrink, int comm_init)
+        int shrink, int comm_init, int verbose)
 {
-    if (!has_inited) randinit();
+    if (!has_inited) init_random_seed((long int) time(NULL));
     SparseMat A = SparseMat_init(Aindptr, Aindices, Adata);
     SparseMat V = SparseMat_init(Vindptr, Vindices, Vdata);
 
@@ -50,7 +47,7 @@ float py_solve_locale(int max_iter, float eps,
         (SparsePair*)buf.mutable_data(), fptr(s), fptr(d), fptr(g),
         &Q,
         iptr(comm), iptr(n_comm),
-        shrink, comm_init);
+        shrink, comm_init, verbose);
     return fval;
 }
 
@@ -83,8 +80,9 @@ void py_split(arr comm, arr comm_next)
 }
 
 PYBIND11_MODULE(EXTENSION_NAME, m) {
-    m.def("solve_locale" ,  &py_solve_locale,  "Solve locale optimization");
-    m.def("aggregate_clusters" , &py_aggregate_clusters, "Form hypergraph");
-    m.def("merge" ,  &py_merge,  "Merge (cpu)");
-    m.def("split" ,  &py_split,  "Split (cpu)");
+    m.def("init_random_seed", &init_random_seed, "Init random seed");
+    m.def("solve_locale",  &py_solve_locale,  "Solve locale optimization");
+    m.def("aggregate_clusters", &py_aggregate_clusters, "Form hypergraph");
+    m.def("merge",  &py_merge,  "Merge (cpu)");
+    m.def("split",  &py_split,  "Split (cpu)");
 }
