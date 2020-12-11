@@ -21,6 +21,9 @@ class SparseMat(object):
 
         return cls(indptr, indices, data)
 
+    def to_scipy(self):
+        return csr_matrix((self.data, self.indices, self.indptr))
+
     @classmethod
     def zeros(cls, n, k):
         indptr = np.arange(0, n*k+1, k, dtype=np.int32)
@@ -132,13 +135,12 @@ def leiden_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2, verbos
         comms = []
         G, Gdiag = A.copy(), Adiag.copy()
         for lv in range(max_lv):
-            if verbose: print(f'\nouter iter {it+1} lv {lv+1}\n')
             # LocaleEmbedding and LocaleRounding
             fval, comm, n_comm, V = solve_locale(G, Gdiag, k, comm=comm_init, eps=eps, max_iter=max_inner, comm_init=comm_init is not None, verbose=verbose)
-            if verbose: print(f'opt fval {fval} n_comm {n_comm}')
+            if verbose: print(f'iter {it+1}({lv+1})\topt fval {fval:.8f}\tn_comm {n_comm}')
             if 1: # LeidenRefine
                 fval, new_comm, new_n_comm, V = solve_locale(G, Gdiag, k, comm=comm, n_comm=n_comm, eps=1e-4, max_iter=1, shrink=1, verbose=verbose)
-                if verbose: print(f'rnd fval {fval} n_comm {new_n_comm}')
+                if verbose: print(f'iter {it+1}({lv+1})\trnd fval {fval:.8f}\tn_comm {new_n_comm}')
             else: # If k=1, this branch equals the Louvain algorithm
                 new_comm, new_n_comm = comm.copy(), n_comm
 
@@ -154,5 +156,6 @@ def leiden_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2, verbos
         for lv in reversed(range(len(comms)-1)):
             split_clusters(comms[lv], comms[lv+1])
         comm_init = comms[0].copy()
+        print()
 
     return comm_init

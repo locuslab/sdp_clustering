@@ -22,8 +22,8 @@ def main():
                         help='Maximum number of inner iters for optimization (int)')
     parser.add_argument('--seed', type=int, default=1234,
                         help='random seed (int)')
-    parser.add_argument('--silent', action='store_true',
-                        help='Silent the verbosity')
+    parser.add_argument('--verbose', type=int, default=1,
+                        help='Verbosity')
     parser.add_argument('--embedding', action='store_true',
                         help='Output embedding instead of labels')
     parser.add_argument('--out', type=str, default=None,
@@ -35,11 +35,11 @@ def main():
 
     init_random_seed(args.seed)
     if args.embedding:
-        E = locale_embedding(graph, args.k, args.eps, args.max_inner, not args.silent)
+        E = locale_embedding(graph, args.k, args.eps, args.max_inner, args.verbose)
         if args.out:
             E.savetxt(args.out)
     else:
-        labels = leiden_locale(graph, args.k, args.eps, args.max_outer, args.max_lv, args.max_inner, not args.silent)
+        labels = leiden_locale(graph, args.k, args.eps, args.max_outer, args.max_lv, args.max_inner, args.verbose)
         if args.out: 
             np.savetxt(args.out, labels, fmt='%d', delimiter='\n')
 

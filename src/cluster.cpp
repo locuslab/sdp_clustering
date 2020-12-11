@@ -222,7 +222,7 @@ float solve_locale(int max_iter, float eps,
         Ring *Q, int *comm, int *n_comm, int shrink, int comm_init, int rnd_card, int verbose)
 {
     int64_t time_st = wall_clock_ns();
-    if (verbose) fprintf(stderr, "n_comm %d\n", *n_comm);
+    if (verbose>1) fprintf(stderr, "n_comm %d\n", *n_comm);
     double fval = 0;
     double m = 0;
     for (int i=0; i<n; i++) {
@@ -259,8 +259,8 @@ float solve_locale(int max_iter, float eps,
     int k = V.indptr[1]-V.indptr[0];
     int64_t time_now = wall_clock_ns();
 
-    if (verbose) fprintf(stderr, "k = %d m %lf\n", k, m);
-    if (verbose) fprintf(stderr, "iter 0 fval %f time %.4e\n", fval, wall_time_diff(time_now, time_st));
+    if (verbose>1) fprintf(stderr, "k = %d m %lf\n", k, m);
+    if (verbose>1) fprintf(stderr, "inner 0 fval %f time %.4e\n", fval, wall_time_diff(time_now, time_st));
 
     int iter=0, first=0, nvisited=0;
     double delta = 0;
@@ -272,7 +272,7 @@ float solve_locale(int max_iter, float eps,
             iter ++;
             fval += delta/(2*m);
             time_now = wall_clock_ns();
-            if (verbose) fprintf(stderr, "iter %d fval %.8e delta %.2e %s %s qlen %d time %.4e\n", iter, fval, delta/(2*m), shrink?"shrink":"", first?"first":"", Q->len, wall_time_diff(time_now, time_st));
+            if (verbose>1) fprintf(stderr, "inner %d fval %.8e delta %.2e %s %s qlen %d time %.4e\n", iter, fval, delta/(2*m), shrink?"shrink":"", first?"first":"", Q->len, wall_time_diff(time_now, time_st));
             double scaled_delta = fabs(delta/(2*m));
             if ((!shrink && (scaled_delta < eps || iter>=max_iter)) || (shrink && (scaled_delta < eps || Q->len==0 || iter>=15))) {
                 if (shrink) break;
