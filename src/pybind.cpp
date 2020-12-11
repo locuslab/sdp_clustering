@@ -33,7 +33,8 @@ float py_solve_locale(int max_iter, float eps,
         arr buf, arr s, arr d, arr g,
         arr queue, arr is_in,
         arr comm, arr n_comm,
-        int shrink, int comm_init, int verbose)
+        int shrink, int comm_init,
+        int rnd_card, int verbose)
 {
     if (!has_inited) init_random_seed((long int) time(NULL));
     SparseMat A = SparseMat_init(Aindptr, Aindices, Adata);
@@ -47,7 +48,8 @@ float py_solve_locale(int max_iter, float eps,
         (SparsePair*)buf.mutable_data(), fptr(s), fptr(d), fptr(g),
         &Q,
         iptr(comm), iptr(n_comm),
-        shrink, comm_init, verbose);
+        shrink, comm_init, 
+        rnd_card, verbose);
     return fval;
 }
 

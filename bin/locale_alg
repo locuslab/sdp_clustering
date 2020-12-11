@@ -4,7 +4,7 @@ import sys
 import argparse
 import numpy as np
 from scipy.io import mmread
-from sdp_clustering import init_random_seed, leiden_locale 
+from sdp_clustering import init_random_seed, leiden_locale, locale_embedding
 
 def main():
     parser = argparse.ArgumentParser()
@@ -24,17 +24,24 @@ def main():
                         help='random seed (int)')
     parser.add_argument('--silent', action='store_true',
                         help='Silent the verbosity')
+    parser.add_argument('--embedding', action='store_true',
+                        help='Output embedding instead of labels')
     parser.add_argument('--out', type=str, default=None,
-                        help='Output clustering labels (default no output)')
+                        help='Output clustering labels or embeddings (default no output)')
     args = parser.parse_args()
 
 
     graph = mmread(args.graph_input)
 
     init_random_seed(args.seed)
-    labels = leiden_locale(graph, args.k, args.eps, args.max_outer, args.max_lv, args.max_inner, not args.silent)
-    if args.out: 
-        np.savetxt(args.out, labels, fmt='%d', delimiter='\n')
+    if args.embedding:
+        E = locale_embedding(graph, args.k, args.eps, args.max_inner, not args.silent)
+        if args.out:
+            E.savetxt(args.out)
+    else:
+        labels = leiden_locale(graph, args.k, args.eps, args.max_outer, args.max_lv, args.max_inner, not args.silent)
+        if args.out: 
+            np.savetxt(args.out, labels, fmt='%d', delimiter='\n')
 
 if __name__ == '__main__':
     main()

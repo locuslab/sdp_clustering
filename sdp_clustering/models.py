@@ -25,7 +25,7 @@ class SparseMat(object):
     def zeros(cls, n, k):
         indptr = np.arange(0, n*k+1, k, dtype=np.int32)
         indices = np.zeros(n*k, dtype=np.int32)
-        data = np.zeros(n*k)
+        data = np.zeros(n*k, dtype=np.float32)
 
         return cls(indptr, indices, data)
 
@@ -44,15 +44,26 @@ class SparseMat(object):
         for i in range(n):
             s.append(f'({i+1}) ')
             for p in range(self.indptr[i], self.indptr[i+1]):
+                if self.data[p].item() == 0.0: continue
                 s.append(f'{self.indices[p].item()+1}:{self.data[p].item():1.2f}\t')
             s.append('\n')
         return ''.join(s)
 
+    def savetxt(self, fname):
+        f = open(fname, 'w')
+        n = self.indptr.shape[0]-1
+        for i in range(n):
+            for p in range(self.indptr[i], self.indptr[i+1]):
+                idx, val = self.indices[p].item()+1, self.data[p].item()
+                if val == 0.0: continue
+                f.write(f'{idx}:{val}\t')
+            f.write('\n')
+        f.close()
 
 def init_random_seed(seed):
     _cpp.init_random_seed(seed)
 
-def solve_locale(A, Adiag, k, comm=None, n_comm=None, max_iter=100, eps=1e-3, shrink=0, comm_init=0, verbose=False):
+def solve_locale(A, Adiag, k, comm=None, n_comm=None, max_iter=100, eps=1e-3, shrink=0, comm_init=0, rnd_card=1, verbose=False):
     n = A.indptr.shape[0]-1
     if k>n: k=n
     k_ = max(10, k) # preallocate for increased rank
@@ -76,7 +87,7 @@ def solve_locale(A, Adiag, k, comm=None, n_comm=None, max_iter=100, eps=1e-3, sh
         buf, s, d, g,
         queue, is_in,
         comm, n_comm,
-        shrink, comm_init, verbose)
+        shrink, comm_init, rnd_card, verbose)
 
     return fval, comm, n_comm.item(), V
 
@@ -105,6 +116,13 @@ def split_clusters(comm, comm_next):
     #    comm[i] = comm_next[ic]
     _cpp.split(comm, comm_next)
 
+def locale_embedding(A, k=8, eps=1e-6, max_inner=10, verbose=False):
+    A = SparseMat.from_scipy(A)
+    n = len(A.indptr)-1
+    Adiag = np.zeros(n)
+    fval, _, _, V = solve_locale(A, Adiag, k, comm=None, eps=eps, max_iter=max_inner, comm_init=False, rnd_card=0, verbose=verbose)
+    return V
+
 def leiden_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2, verbose=False):
     A = SparseMat.from_scipy(A)
     n = len(A.indptr)-1
@@ -115,19 +133,21 @@ def leiden_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2, verbos
         G, Gdiag = A.copy(), Adiag.copy()
         for lv in range(max_lv):
             if verbose: print(f'\nouter iter {it+1} lv {lv+1}\n')
+            # LocaleEmbedding and LocaleRounding
             fval, comm, n_comm, V = solve_locale(G, Gdiag, k, comm=comm_init, eps=eps, max_iter=max_inner, comm_init=comm_init is not None, verbose=verbose)
             if verbose: print(f'opt fval {fval} n_comm {n_comm}')
-            if 1: # Locale
+            if 1: # LeidenRefine
                 fval, new_comm, new_n_comm, V = solve_locale(G, Gdiag, k, comm=comm, n_comm=n_comm, eps=1e-4, max_iter=1, shrink=1, verbose=verbose)
                 if verbose: print(f'rnd fval {fval} n_comm {new_n_comm}')
-            else: # Louvain
+            else: # If k=1, this branch equals the Louvain algorithm
                 new_comm, new_n_comm = comm.copy(), n_comm
 
             if new_n_comm == len(comm): break
-
+            
             comm_init = np.zeros(new_n_comm, dtype=np.int32)
             merge_clusters(comm, comm_init, new_comm)
 
+            # Aggregrate
             comms.append(new_comm.copy())
             G, Gdiag = aggregate_clusters(G, Gdiag, new_comm, new_n_comm)
 

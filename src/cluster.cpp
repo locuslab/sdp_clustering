@@ -219,7 +219,7 @@ void ring_reset(Ring *Q)
 float solve_locale(int max_iter, float eps, 
         int n, SparseMat A, float *Adiag, SparseMat V,
         SparsePair *buf, float *__restrict__ s, float *__restrict__ d, float *__restrict__ g,
-        Ring *Q, int *comm, int *n_comm, int shrink, int comm_init, int verbose)
+        Ring *Q, int *comm, int *n_comm, int shrink, int comm_init, int rnd_card, int verbose)
 {
     int64_t time_st = wall_clock_ns();
     if (verbose) fprintf(stderr, "n_comm %d\n", *n_comm);
@@ -276,6 +276,7 @@ float solve_locale(int max_iter, float eps,
             double scaled_delta = fabs(delta/(2*m));
             if ((!shrink && (scaled_delta < eps || iter>=max_iter)) || (shrink && (scaled_delta < eps || Q->len==0 || iter>=15))) {
                 if (shrink) break;
+                if (rnd_card == 0) return fval;
                 shrink ^= 1;
                 first = shrink;
                 ring_reset(Q);
@@ -291,7 +292,7 @@ float solve_locale(int max_iter, float eps,
         nvisited++;
 
         if (A.indptr[i]==A.indptr[i+1]) continue;
-        if (*n_comm) {
+        if (*n_comm) { // avoid singleton
             int nonsingleton = 0;
             for (int p=A.indptr[i]; p<A.indptr[i+1]; p++) {
                 int j = A.indices[p];
@@ -302,6 +303,8 @@ float solve_locale(int max_iter, float eps,
             }
             if (nonsingleton) continue;
         }
+
+        /* Update one block in Locale: Start */
 
         // g = sum_j aij vj
         for (int p=A.indptr[i]; p<A.indptr[i+1]; p++) {
@@ -342,7 +345,7 @@ float solve_locale(int max_iter, float eps,
         } else { // update
             //if (shrink) randpick(buf, npos, g, first?-100:old_gv);
             npos = min(npos, V.indptr[i+1]-V.indptr[i]);
-            if (shrink) npos = 1;
+            if (shrink) npos = min(npos, rnd_card);
             gv = gnrm = snrm2_pairs(buf, npos);
         }
         
@@ -366,6 +369,9 @@ float solve_locale(int max_iter, float eps,
 
         delta += (gv - old_gv)*2;
 
+        /* Update one block in Locale: End */
+
+        // push neighbors to queue
         for (int p=A.indptr[i]; p<A.indptr[i+1]; p++) {
             int j = A.indices[p];
             if (ic == comm[j]) ring_push(Q, j);
