@@ -126,7 +126,7 @@ def locale_embedding(A, k=8, eps=1e-6, max_inner=10, verbose=False):
     fval, _, _, V = solve_locale(A, Adiag, k, comm=None, eps=eps, max_iter=max_inner, comm_init=False, rnd_card=0, verbose=verbose)
     return V
 
-def leiden_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2, verbose=False):
+def leiden_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2, verbose=0):
     A = SparseMat.from_scipy(A)
     n = len(A.indptr)-1
     Adiag = np.zeros(n)
@@ -156,6 +156,6 @@ def leiden_locale(A, k=8, eps=1e-6, max_outer=10, max_lv=10, max_inner=2, verbos
         for lv in reversed(range(len(comms)-1)):
             split_clusters(comms[lv], comms[lv+1])
         comm_init = comms[0].copy()
-        print()
+        if verbose: print()
 
     return comm_init
