@@ -4,7 +4,7 @@
 [license]: LICENSE
 
 [pypi-image]: https://img.shields.io/pypi/v/sdp-clustering.svg
-[pypi]: https://pypi.python.org/pypi/satnet
+[pypi]: https://pypi.python.org/pypi/sdp-clustering
 
 [colab-image]: https://colab.research.google.com/assets/colab-badge.svg
 [colab]: https://colab.research.google.com/drive/16d06iAViZHJ58S-RmwAzKR_TyWi5FE-V#offline=true&sandboxMode=true
